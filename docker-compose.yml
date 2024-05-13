@@ -1,0 +1,29 @@
+name: psychologist
+
+services:
+  api:
+    build: Psychologist.Server
+    restart: unless-stopped
+
+  nginx:
+    build: Psychologist.Client
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+  
+  db:
+    image: postgres:16.2
+    restart: unless-stopped
+    shm_size: 128mb
+
+    volumes:
+      - db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: 123
+      POSTGRES_USER: postgres
+      POSTGRES_DB: psychologist
+
+volumes:
+  db:
+
+# docker-compose up --build

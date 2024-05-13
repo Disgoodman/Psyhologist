@@ -1,0 +1,52 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34511.84
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Psychologist.Server", "Psychologist.Server\Psychologist.Server.csproj", "{3CBDA815-7C35-4F50-8AC6-0DF3C558D040}"
+EndProject
+Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "psychologist.client", "psychologist.client\psychologist.client.esproj", "{0209B845-F9F0-4F82-9574-39631BBB280E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Элементы решения", "Элементы решения", "{905F3B49-4223-4DE0-B5C8-95A3503223DD}"
+	ProjectSection(SolutionItems) = preProject
+		docker-compose.yml = docker-compose.yml
+		Dockerfile = Dockerfile
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Psychologist.Tests", "Psychologist.Tests\Psychologist.Tests.csproj", "{A9581F33-152B-46F8-9C63-929569A2C9F9}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+		Docker|Any CPU = Docker|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3CBDA815-7C35-4F50-8AC6-0DF3C558D040}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3CBDA815-7C35-4F50-8AC6-0DF3C558D040}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3CBDA815-7C35-4F50-8AC6-0DF3C558D040}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3CBDA815-7C35-4F50-8AC6-0DF3C558D040}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3CBDA815-7C35-4F50-8AC6-0DF3C558D040}.Docker|Any CPU.ActiveCfg = Docker|Any CPU
+		{3CBDA815-7C35-4F50-8AC6-0DF3C558D040}.Docker|Any CPU.Build.0 = Docker|Any CPU
+		{0209B845-F9F0-4F82-9574-39631BBB280E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0209B845-F9F0-4F82-9574-39631BBB280E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0209B845-F9F0-4F82-9574-39631BBB280E}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{0209B845-F9F0-4F82-9574-39631BBB280E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0209B845-F9F0-4F82-9574-39631BBB280E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0209B845-F9F0-4F82-9574-39631BBB280E}.Release|Any CPU.Deploy.0 = Release|Any CPU
+		{0209B845-F9F0-4F82-9574-39631BBB280E}.Docker|Any CPU.ActiveCfg = Docker|Any CPU
+		{0209B845-F9F0-4F82-9574-39631BBB280E}.Docker|Any CPU.Build.0 = Docker|Any CPU
+		{A9581F33-152B-46F8-9C63-929569A2C9F9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A9581F33-152B-46F8-9C63-929569A2C9F9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A9581F33-152B-46F8-9C63-929569A2C9F9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A9581F33-152B-46F8-9C63-929569A2C9F9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A9581F33-152B-46F8-9C63-929569A2C9F9}.Docker|Any CPU.ActiveCfg = Docker|Any CPU
+		{A9581F33-152B-46F8-9C63-929569A2C9F9}.Docker|Any CPU.Build.0 = Docker|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {95802310-39E8-4542-9BC8-265C70D460FD}
+	EndGlobalSection
+EndGlobal
