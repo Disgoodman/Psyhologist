@@ -5,12 +5,12 @@
 
     <div v-if="!visitor" class="d-flex justify-content-center">
       <div class="spinner-border" role="status">
-        <span class="visually-hidden">Loading...</span>
+        <span class="visually-hidden">Загрузка...</span>
       </div>
     </div>
 
     <div v-if="!editMode">
-      <p class="mb-1">ФИО: {{ getVisitorFullname(visitor) ?? '-' }}</p>
+      <p class="mb-1">ФИО: {{ getFullName(visitor) ?? '-' }}</p>
       <p class="mb-1">Дата рождения: {{ visitor?.birthday.toFormat('dd.MM.yyyy') ?? '-' }}</p>
       <p class="mb-0">Тип: {{ getVisitorTypeTitleByName(visitor?.type) ?? '-' }}</p>
 
@@ -67,7 +67,7 @@ import { callDelete, callGet, callPost, callPut } from "@/services/api.js";
 import { DateTime } from "luxon";
 import { parseVisitor } from "@/store/modules/common.js";
 import { useRouter } from "vue-router";
-import { visitorTypes, getVisitorFullname, getVisitorTypeTitleByName } from "@/utils/commonUtils.js"
+import { visitorTypes, getFullName, getVisitorTypeTitleByName } from "@/utils/commonUtils.js"
 
 const store = useStore();
 const router = useRouter()

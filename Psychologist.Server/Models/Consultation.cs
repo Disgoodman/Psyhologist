@@ -24,61 +24,64 @@ public enum ConsultationType
 public class Consultation
 {
     [Column("id")] public int Id { get; set; }
-    [Column("schedule_date"), ForeignKey(nameof(Day))] public DateOnly ScheduleDate { get; set; }
+    [Column("schedule_date")] public DateOnly ScheduleDate { get; set; }
+    [Column("specialist_id")] public int SpecialistId { get; set; }
     [Column("visitor_id"), JsonIgnore] public int VisitorId { get; set; }
+    [Column("created_by_visitor")] public bool CreatedByVisitor { get; set; } = false;
     [Column("time")] public TimeOnly Time { get; set; }
-    [Column("topic"), MaxLength(200)] public string Topic { get; set; } = null!;
-    [Column("visitor_arrived"), DefaultValue(false)] public bool VisitorArrived { get; set; } = false;
+    [Column("topic"), MaxLength(200)] public string Topic { get; set; } = "";
+
+    [Column("visitor_arrived"), DefaultValue(false)]
+    public bool VisitorArrived { get; set; } = false;
+
+    [Column("primary"), DefaultValue(true)]
+    public bool Primary { get; set; } = true;
+
     [Column("type"), DefaultValue(false)] public ConsultationType Type { get; set; }
 
-    [JsonIgnore]
-    public ScheduleDay Day { get; set; } = null!;
+    [JsonIgnore] public ScheduleDay Day { get; set; } = null!;
     public Visitor Visitor { get; set; } = null!;
+    [JsonIgnore] public Specialist Specialist { get; set; } = null!;
 }
 
 public class IndividualConsultation : Consultation
 {
-    [Column("request_code")] public string RequestCode { get; set; } = null!;
-    [Column("nature")] public string Nature { get; set; } = null!;
-    [Column("notes")] public string Notes { get; set; } = null!;
+    [Column("request_code")] public string RequestCode { get; set; } = "";
+    [Column("notes")] public string Notes { get; set; } = "";
 }
 
 public class IndividualWork : Consultation
 {
-    [Column("purpose")] public string Purpose { get; set; } = null!;
+    [Column("purpose")] public string Purpose { get; set; } = "";
 }
 
 public class DiagnosticWork : Consultation
 {
-    [Column("primary"), DefaultValue(true)] public bool Primary { get; set; } = true;
-    [Column("request_code")] public string RequestCode { get; set; } = null!;
-    [Column("revealed")] public string Revealed { get; set; } = null!;
-    [Column("prescribed")] public string Prescribed { get; set; } = null!;
+    [Column("request_code")] public string RequestCode { get; set; } = "";
+    [Column("revealed")] public string Revealed { get; set; } = "";
+    [Column("prescribed")] public string Prescribed { get; set; } = "";
 }
 
-/*[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-/*[JsonDerivedType(typeof(IndividualConsultationPostModel), typeDiscriminator: ConsultationType.IndividualConsultation)]
-[JsonDerivedType(typeof(IndividualWorkPostModel), typeDiscriminator: (int)ConsultationType.IndividualWork)]
-[JsonDerivedType(typeof(DiagnosticWorkPostModel), typeDiscriminator: (int)ConsultationType.DiagnosticWork)]#1#
-[JsonDerivedType(typeof(IndividualConsultationPostModel), typeDiscriminator: "individualConsultation")]
-[JsonDerivedType(typeof(IndividualWorkPostModel), typeDiscriminator: "individualWork")]
-[JsonDerivedType(typeof(DiagnosticWorkPostModel), typeDiscriminator: "diagnosticWork")]*/
 public class ConsultationPostModel
 {
+    public int? SpecialistId { get; set; }
     public DateOnly? ScheduleDate { get; set; }
     public int? VisitorId { get; set; }
     public TimeOnly? Time { get; set; }
-    public string? Topic { get; set; }
+    public string? Topic { get; set; } = "";
     public bool? VisitorArrived { get; set; } = false;
+    public bool? Primary { get; set; }
     public ConsultationType? Type { get; set; }
 
     public void AssignTo(Consultation c)
     {
+        c.SpecialistId = SpecialistId!.Value;
         c.ScheduleDate = ScheduleDate!.Value;
         c.VisitorId = VisitorId!.Value;
         c.Time = Time!.Value;
         c.Topic = Topic!;
         c.VisitorArrived = VisitorArrived!.Value;
+        c.Primary = Primary!.Value;
         c.Type = Type!.Value;
     }
 
@@ -114,16 +117,14 @@ public class ConsultationPostModel
 public class IndividualConsultationPostModel : ConsultationPostModel
 {
     public IndividualConsultationPostModel() => Type = ConsultationType.IndividualConsultation;
-    
+
     public string? RequestCode { get; set; }
-    public string? Nature { get; set; }
-    public string? Notes { get; set; }
+    public string? Notes { get; set; } = "";
 
     public void AssignTo(IndividualConsultation c)
     {
         base.AssignTo(c);
         c.RequestCode = RequestCode!;
-        c.Nature = Nature!;
         c.Notes = Notes!;
     }
 }
@@ -131,9 +132,9 @@ public class IndividualConsultationPostModel : ConsultationPostModel
 public class IndividualWorkPostModel : ConsultationPostModel
 {
     public IndividualWorkPostModel() => Type = ConsultationType.IndividualWork;
-    
+
     public string? Purpose { get; set; }
-    
+
     public void AssignTo(IndividualWork c)
     {
         base.AssignTo(c);
@@ -144,16 +145,14 @@ public class IndividualWorkPostModel : ConsultationPostModel
 public class DiagnosticWorkPostModel : ConsultationPostModel
 {
     public DiagnosticWorkPostModel() => Type = ConsultationType.DiagnosticWork;
-    
-    public bool? Primary { get; set; }
+
     public string? RequestCode { get; set; }
     public string? Revealed { get; set; }
     public string? Prescribed { get; set; }
-    
+
     public void AssignTo(DiagnosticWork c)
     {
         base.AssignTo(c);
-        c.Primary = Primary!.Value;
         c.RequestCode = RequestCode!;
         c.Revealed = Revealed!;
         c.Prescribed = Prescribed!;
@@ -164,11 +163,13 @@ public class ConsultationPostModelValidator<T> : AbstractValidator<T> where T : 
 {
     public ConsultationPostModelValidator()
     {
+        RuleFor(c => c.SpecialistId).NotNull();
         RuleFor(c => c.ScheduleDate).NotNull();
         RuleFor(c => c.Time).NotNull();
         RuleFor(c => c.VisitorId).NotNull();
         RuleFor(c => c.Topic).NotNull().NotEmpty();
         RuleFor(c => c.VisitorArrived).NotNull();
+        RuleFor(c => c.Primary).NotNull();
         RuleFor(c => c.Type).NotNull().IsInEnum();
     }
 }
@@ -180,7 +181,6 @@ public class IndividualConsultationPostModelValidator : ConsultationPostModelVal
     public IndividualConsultationPostModelValidator()
     {
         RuleFor(c => c.RequestCode).NotNull().NotEmpty();
-        RuleFor(c => c.Nature).NotNull().NotEmpty();
         RuleFor(c => c.Notes).NotNull();
     }
 }
@@ -197,24 +197,24 @@ public class DiagnosticWorkPostModelValidator : ConsultationPostModelValidator<D
 {
     public DiagnosticWorkPostModelValidator()
     {
-        RuleFor(c => c.Primary).NotNull();
         RuleFor(c => c.RequestCode).NotNull().NotEmpty();
         RuleFor(c => c.Revealed).NotNull();
         RuleFor(c => c.Prescribed).NotNull();
     }
 }
 
-
 public class ConsultationPutModel
 {
     public int? VisitorId { get; set; }
     public string? Topic { get; set; }
     public bool? VisitorArrived { get; set; } = false;
-    
+    public bool? Primary { get; set; }
+
     public void AssignTo(Consultation c)
     {
         c.VisitorId = VisitorId!.Value;
         c.Topic = Topic!;
+        c.Primary = Primary!.Value;
         c.VisitorArrived = VisitorArrived!.Value;
     }
 }
@@ -222,14 +222,12 @@ public class ConsultationPutModel
 public class IndividualConsultationPutModel : ConsultationPutModel
 {
     public string? RequestCode { get; set; }
-    public string? Nature { get; set; }
     public string? Notes { get; set; }
 
     public void AssignTo(IndividualConsultation c)
     {
         base.AssignTo(c);
         c.RequestCode = RequestCode!;
-        c.Nature = Nature!;
         c.Notes = Notes!;
     }
 }
@@ -237,7 +235,7 @@ public class IndividualConsultationPutModel : ConsultationPutModel
 public class IndividualWorkPutModel : ConsultationPutModel
 {
     public string? Purpose { get; set; }
-    
+
     public void AssignTo(IndividualWork c)
     {
         base.AssignTo(c);
@@ -247,15 +245,13 @@ public class IndividualWorkPutModel : ConsultationPutModel
 
 public class DiagnosticWorkPutModel : ConsultationPutModel
 {
-    public bool? Primary { get; set; }
     public string? RequestCode { get; set; }
     public string? Revealed { get; set; }
     public string? Prescribed { get; set; }
-    
+
     public void AssignTo(DiagnosticWork c)
     {
         base.AssignTo(c);
-        c.Primary = Primary!.Value;
         c.RequestCode = RequestCode!;
         c.Revealed = Revealed!;
         c.Prescribed = Prescribed!;
@@ -279,7 +275,6 @@ public class IndividualConsultationPutModelValidator : ConsultationPutModelValid
     public IndividualConsultationPutModelValidator()
     {
         RuleFor(c => c.RequestCode).NotNull().NotEmpty();
-        RuleFor(c => c.Nature).NotNull().NotEmpty();
         RuleFor(c => c.Notes).NotNull();
     }
 }

@@ -8,7 +8,9 @@ export default {
     },
     getters: {
         isAuth: state => !!state.user,
-        isAdmin: state => !!state.user?.roles?.find(r => r.toLowerCase() === 'admin')
+        isAdmin: state => !!state.user?.roles?.find(r => r.toLowerCase() === 'admin'),
+        isSpecialist: state => !!state.user?.roles?.find(r => r.toLowerCase() === 'employee'),
+        isVisitor: state => !!state.user?.roles?.find(r => r.toLowerCase() === 'visitor'),
     },
     mutations: {
         setAuthorizedUser(state, value) {

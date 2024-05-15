@@ -3,17 +3,17 @@
 
 		<div v-if="!articlesLoaded" class="d-flex justify-content-center">
 			<div class="spinner-border" role="status">
-				<span class="visually-hidden">Loading...</span>
+				<span class="visually-hidden">Загрузка...</span>
 			</div>
 		</div>
 
 		<div v-else-if="articles.length === 0" class="alert alert-warning d-flex justify-content-center" role="alert">
-			Нет статей
+			Нет новостей
 		</div>
 
 		<div v-if="isAdmin && newArticleFormVisible === false" class="mb-3 d-flex">
 			<button type="button" class="btn btn-outline-secondary flex-grow-1"
-							@click="newArticleFormVisible = true">Добавить статью
+							@click="newArticleFormVisible = true">Добавить новость
 			</button>
 		</div>
 

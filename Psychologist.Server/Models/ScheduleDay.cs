@@ -1,19 +1,22 @@
-﻿using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 using FluentValidation;
+using Microsoft.EntityFrameworkCore;
 
 namespace Psychologist.Server.Models;
 
 [Table("schedule")]
+[PrimaryKey(nameof(SpecialistId), nameof(Date))]
 public class ScheduleDay
 {
-    [Column("date"), Key] public DateOnly Date { get; set; }
+    [Column("specialist_id"), JsonIgnore] public int SpecialistId { get; set; }
+    [Column("date")] public DateOnly Date { get; set; }
     [Column("start_time")] public TimeOnly StartTime { get; set; }
     [Column("end_time")] public TimeOnly EndTime { get; set; }
     [Column("break_time")] public TimeOnly? BreakTime { get; set; }
     //[Column("note"), DefaultValue("")] public string Note { get; set; } = ""; // TODO
 
+    [JsonIgnore] public Specialist? Specialist { get; set; } = null!;
     public ICollection<Consultation> Consultations { get; set; } = null!;
 }
 

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Psychologist.Server.Database;
 using Psychologist.Server.Models;
+using Psychologist.Server.Utils;
 
 namespace Psychologist.Server.Controllers;
 
@@ -19,12 +20,14 @@ public class ConsultationsController : ControllerBase
         _context = context;
     }
 
-    [HttpGet]
+    [HttpGet("{specialistId:int}")]
     [Produces<List<Consultation>>]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll(int specialistId)
     {
-        var consultations = await _context.Consultations
-            .Include(c => c.Visitor).ToListAsync();
+        var consultations = await _context.Consultations.AsNoTracking()
+            .Include(c => c.Visitor)
+            .Where(c => c.SpecialistId == specialistId)
+            .ToListAsync();
         return Ok(consultations);
     }
 
@@ -32,19 +35,19 @@ public class ConsultationsController : ControllerBase
     [Produces<Consultation>]
     public async Task<IActionResult> Get(int id)
     {
-        var consultation = await _context.Consultations
+        var consultation = await _context.Consultations.AsNoTracking()
             .Include(c => c.Visitor)
             .FirstOrDefaultAsync(c => c.Id == id);
         return consultation != null ? Ok(consultation) : NotFound();
     }
 
-    [HttpGet("{date:regex(\\d\\d\\d\\d-\\d\\d-\\d\\d)}/{time:regex(\\d\\d:\\d\\d)}")]
+    [HttpGet("{specialistId:int}/{date:regex(\\d\\d\\d\\d-\\d\\d-\\d\\d)}/{time:regex(\\d\\d:\\d\\d)}")]
     [Produces<Consultation>]
-    public async Task<IActionResult> Get(DateOnly date, TimeOnly time)
+    public async Task<IActionResult> Get(int specialistId, DateOnly date, TimeOnly time)
     {
-        var consultation = await _context.Consultations
+        var consultation = await _context.Consultations.AsNoTracking()
             .Include(c => c.Visitor)
-            .FirstOrDefaultAsync(c => c.ScheduleDate == date && c.Time == time);
+            .FirstOrDefaultAsync(c => c.SpecialistId == specialistId && c.ScheduleDate == date && c.Time == time);
         return consultation != null ? Ok(consultation) : NotFound();
     }
 
@@ -59,21 +62,22 @@ public class ConsultationsController : ControllerBase
     private async Task<IActionResult?> ValidateConsultationModel(ConsultationPostModel model)
     {
         var visitor = await _context.Visitors.FirstOrDefaultAsync(c => c.Id == model.VisitorId!.Value);
-        if (visitor == null) return BadRequest("Visitor not found");
+        if (visitor == null) return this.Problem400("Visitor not found");
 
         var day = await _context.ScheduleDays.FirstOrDefaultAsync(c => c.Date == model.ScheduleDate!.Value);
-        if (day == null) return BadRequest($"There is no schedule for the date {model.ScheduleDate!.Value:O}");
+        if (day == null) return this.Problem400($"There is no schedule for the date {model.ScheduleDate!.Value:O}");
 
         // TODO: check work time range and break.
 
         var consultation = await _context.Consultations
-            .FirstOrDefaultAsync(c => c.ScheduleDate == model.ScheduleDate!.Value && c.Time == model.Time!.Value);
-        if (consultation != null) return BadRequest($"The selected date and time are already occupied.");
+            .FirstOrDefaultAsync(c => c.SpecialistId == model.SpecialistId &&
+                                      c.ScheduleDate == model.ScheduleDate!.Value && c.Time == model.Time!.Value);
+        if (consultation != null) return this.Problem400($"The selected date and time are already occupied.");
 
         return null;
     }
 
-    [HttpGet("individual-consultation")]
+    /*[HttpGet("individual-consultation")]
     [Produces<List<IndividualConsultation>>]
     public async Task<IActionResult> GetIndividualConsultations()
     {
@@ -101,7 +105,7 @@ public class ConsultationsController : ControllerBase
             .Include(c => c.Visitor)
             .ToListAsync();
         return Ok(consultations);
-    }
+    }*/
 
     [HttpPost("individual-consultation")]
     [Produces<IndividualConsultation>]
@@ -147,7 +151,7 @@ public class ConsultationsController : ControllerBase
         if (consultation == null) return NotFound();
 
         var visitor = await _context.Visitors.FirstOrDefaultAsync(c => c.Id == model.VisitorId!.Value);
-        if (visitor == null) return BadRequest("Visitor not found");
+        if (visitor == null) return this.Problem400("Visitor not found");
 
         model.AssignTo(consultation);
 
@@ -163,7 +167,7 @@ public class ConsultationsController : ControllerBase
         if (consultation == null) return NotFound();
 
         var visitor = await _context.Visitors.FirstOrDefaultAsync(c => c.Id == model.VisitorId!.Value);
-        if (visitor == null) return BadRequest("Visitor not found");
+        if (visitor == null) return this.Problem400("Visitor not found");
 
         model.AssignTo(consultation);
 
@@ -179,7 +183,7 @@ public class ConsultationsController : ControllerBase
         if (consultation == null) return NotFound();
 
         var visitor = await _context.Visitors.FirstOrDefaultAsync(c => c.Id == model.VisitorId!.Value);
-        if (visitor == null) return BadRequest("Visitor not found");
+        if (visitor == null) return this.Problem400("Visitor not found");
 
         model.AssignTo(consultation);
 

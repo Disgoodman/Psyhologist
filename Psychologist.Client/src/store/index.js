@@ -1,6 +1,7 @@
 ﻿import { createStore } from 'vuex'
 import auth from './modules/auth'
 import common from './modules/common'
+import schedule from './modules/schedule'
 
 const store = createStore({
     strict: true,
@@ -8,7 +9,8 @@ const store = createStore({
     mutations: {},
     modules: {
         auth,
-        common
+        common,
+        schedule
     },
 });
 

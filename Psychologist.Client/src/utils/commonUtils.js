@@ -4,7 +4,7 @@ export const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 export const isString = s => s?.constructor === String;
 
-export const getVisitorFullname = visitor => !visitor ? null : visitor.firstName + ' ' + visitor.lastName + (visitor.patronymic ? ' ' + visitor.patronymic : '');
+export const getFullName = p => !p ? null : p.firstName + ' ' + p.lastName + (p.patronymic ? ' ' + p.patronymic : '');
 
 export const visitorTypes = [
     { name: 'student', title: 'Студент' },
@@ -13,13 +13,21 @@ export const visitorTypes = [
 ]
 export const getVisitorTypeTitleByName = name => visitorTypes.find(t => t.name === name)?.title;
 
-export const getVisitorLabel = c => `${getVisitorFullname(c)} (${getVisitorTypeTitleByName(c.type)}, ${c.birthday.toFormat('dd.MM.yyyy')})`;
+export const getVisitorLabel = c => `${ getFullName(c) } (${ getVisitorTypeTitleByName(c.type) }, ${ c.birthday.toFormat('dd.MM.yyyy') })`;
+export const getSpecialistLabel = c => `${ getFullName(c) } (${ c.type })`;
 
 export const consultationTypes = [
     { name: 'individualConsultation', title: 'Индивидуальная консультация' },
     { name: 'individualWork', title: 'Индивидуальная коррекционная/развивающая работа' },
     { name: 'diagnosticWork', title: 'Диагностическая работа' },
 ]
+
+export const checkSpecialistIsPsychologist = type => type?.toLowerCase()?.includes('психолог');
+
+export const getConsultationTypesForSpecialist = type =>
+    checkSpecialistIsPsychologist(type)
+    ? consultationTypes
+    : [ consultationTypes[0] ];
 
 export const getConsultationTypeTitleByName = name => consultationTypes.find(t => t.name === name)?.title;
 

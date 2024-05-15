@@ -26,7 +26,7 @@ public class VisitorsController : ControllerBase
         
         if (!string.IsNullOrEmpty(searchString))
         {
-            query = query.Where(v => v.FirstName.Contains(searchString) || v.LastName.Contains(searchString));
+            query = query.Where(v => (v.FirstName + " " + v.LastName + " " + v.Patronymic).Contains(searchString));
         }
 
         if (types is { Count: > 0 and < 3 })

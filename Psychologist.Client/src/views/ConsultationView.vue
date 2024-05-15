@@ -1,7 +1,7 @@
 ﻿<template>
   <div>
     <div class="container-md mt-3">
-      <router-link :to="{ name: 'scheduleDay', params: { date: props.datetime.toISODate() } }"
+      <router-link :to="{ name: 'scheduleDay', params: { specialistId: props.specialistId, date: props.datetime.toISODate() } }"
                    class="btn btn-outline-secondary btn-sm px-5">
         Назад
       </router-link>
@@ -18,6 +18,13 @@
 
       <div class="form-check mb-2">
         <label class="form-check-label">
+          <input class="form-check-input" type="checkbox" v-model="consultation.primary">
+          Первичное обследование
+        </label>
+      </div>
+
+      <div class="form-check mb-2">
+        <label class="form-check-label">
           <input class="form-check-input" type="checkbox" v-model="consultation.visitorArrived">
           Клиент прибыл
         </label>
@@ -28,15 +35,11 @@
       </div>
 
       <template v-if="consultation.type === 'individualConsultation'">
-        <div class="input-group mb-2">
+        <div class="input-group mb-2" v-if="isPsychologist">
           <label class="input-group-text">Код обращения</label>
           <select class="form-select" v-model="consultation.requestCode">
             <option v-for="code in requestCodes" :value="code.name">{{ code.name }} - {{ code.title }}</option>
           </select>
-        </div>
-        <div class="input-group mb-2">
-          <span class="input-group-text">Характер консультации</span>
-          <input type="text" class="form-control" v-model="consultation.nature">
         </div>
         <div class="mb-2">
           <label class="form-label mb-0">Заметки</label>
@@ -50,12 +53,6 @@
         </div>
       </template>
       <template v-else-if="consultation.type === 'diagnosticWork'">
-        <div class="form-check mb-2">
-          <label class="form-check-label">
-            <input class="form-check-input" type="checkbox" v-model="consultation.primary">
-            Первичное обследование
-          </label>
-        </div>
         <div class="input-group mb-2">
           <label class="input-group-text">Код обращения</label>
           <select class="form-select" v-model="consultation.requestCode">
@@ -77,6 +74,7 @@
       </template>
 
       <button class="w-100 btn btn-outline-secondary" @click="updateConsultation">Сохранить</button>
+      <button class="w-100 btn btn-outline-secondary mt-1" @click="deleteConsultation">Удалить</button>
     </div>
 
     <!-- New consultation form -->
@@ -112,7 +110,7 @@
               <input type="text" class="form-control" v-model="newVisitor.lastName">
             </div>
             <div class="input-group mb-3">
-              <span class="input-group-text">Отвество</span>
+              <span class="input-group-text">Отчество</span>
               <input type="text" class="form-control" v-model="newVisitor.patronymic">
             </div>
             <div class="input-group mb-3">
@@ -139,6 +137,13 @@
         <input type="text" class="form-control" v-model="newConsultation.topic">
       </div>
 
+      <div class="form-check mb-2">
+        <label class="form-check-label">
+          <input class="form-check-input" type="checkbox" v-model="newConsultation.primary">
+          Первичное обследование
+        </label>
+      </div>
+
       <div class="form-check mb-3">
         <label class="form-check-label">
           <input class="form-check-input" type="checkbox" v-model="newConsultation.visitorArrived">
@@ -154,15 +159,11 @@
       </div>
 
       <template v-if="newConsultation.type === 'individualConsultation'">
-        <div class="input-group mb-2">
+        <div class="input-group mb-2" v-if="isPsychologist">
           <label class="input-group-text">Код обращения</label>
           <select class="form-select" v-model="newConsultation.requestCode">
             <option v-for="code in requestCodes" :value="code.name">{{ code.name }} - {{ code.title }}</option>
           </select>
-        </div>
-        <div class="input-group mb-2">
-          <span class="input-group-text">Характер консультации</span>
-          <input type="text" class="form-control" v-model="newConsultation.nature">
         </div>
         <div class="mb-2">
           <label class="form-label mb-0">Заметки</label>
@@ -176,12 +177,6 @@
         </div>
       </template>
       <template v-else-if="newConsultation.type === 'diagnosticWork'">
-        <div class="form-check mb-2">
-          <label class="form-check-label">
-            <input class="form-check-input" type="checkbox" v-model="newConsultation.primary">
-            Первичное обследование
-          </label>
-        </div>
         <div class="input-group mb-2">
           <label class="input-group-text">Код обращения</label>
           <select class="form-select" v-model="newConsultation.requestCode">
@@ -215,22 +210,30 @@ import { DateTime } from "luxon";
 import Multiselect from 'vue-multiselect'
 import "vue-multiselect/dist/vue-multiselect.css"
 import { callDelete, callGet, callPost, callPut } from "@/services/api.js";
-import { parseVisitor, parseConsultation } from "@/store/modules/common.js";
+import { parseVisitor, parseConsultation, parseSpecialist } from "@/store/modules/common.js";
 import { RequestError } from "@/exceptions.js";
 import iziToast from "izitoast";
 import {
-  visitorTypes, consultationTypeEndpoints, consultationTypes, errorToText,
-  getVisitorFullname,
+  visitorTypes, consultationTypeEndpoints, errorToText,
+  getFullName,
   getVisitorLabel,
   getVisitorTypeTitleByName, getConsultationTypeEndpoint,
-  getConsultationTypeTitleByName, requestCodes
+  getConsultationTypeTitleByName, requestCodes, checkSpecialistIsPsychologist, getConsultationTypesForSpecialist
 } from "@/utils/commonUtils.js"
+import router from "@/router/index.js";
 
 const store = useStore();
 
 const props = defineProps({
+  specialistId: Number,
   datetime: DateTime
 })
+
+const localSpecialist = ref(null);
+const specialist = computed(() => localSpecialist.value ?? store.state.common.specialists?.find(s => s.id === props.specialistId));
+const isPsychologist = computed(() => checkSpecialistIsPsychologist(specialist.value?.type ?? ''));
+
+const consultationTypes = computed(() => getConsultationTypesForSpecialist(specialist.value?.type))
 
 const visitors = computed(() => store.state.common.visitors ?? []);
 const selectedVisitor = ref(null);
@@ -242,14 +245,20 @@ const consultation = ref(null);
 const newConsultation = reactive({
   scheduleDate: null, time: null,
   visitorId: '', topic: '', visitorArrived: false,
-  type: consultationTypes[0].name
+  type: consultationTypes.value[0].name, primary: true,
 });
-const getVisitorOptionSearchText = c => `${getVisitorFullname(c)} ${getVisitorTypeTitleByName(c.type)} ${c.birthday.toFormat('dd.MM.yyyy')}`;
+const getVisitorOptionSearchText = c => `${getFullName(c)} ${getVisitorTypeTitleByName(c.type)} ${c.birthday.toFormat('dd.MM.yyyy')}`;
 
 onMounted(async () => {
   try {
-    let rawConsultation = await callGet('/api/consultations/' + props.datetime.toFormat("yyyy-MM-dd/HH:mm"));
+    let rawConsultation = await callGet(`/api/consultations/${props.specialistId}/${props.datetime.toFormat("yyyy-MM-dd/HH:mm")}`);
     consultation.value = parseConsultation(rawConsultation);
+
+    if (!specialist.value) {
+      let rawSpecialist = await callGet('/api/specialists/' + props.specialistId);
+      localSpecialist.value = parseSpecialist(rawSpecialist);
+      console.warn(isPsychologist.value)
+    }
   } catch (err) {
     if (!(err instanceof RequestError && err.status === 404)) throw err;
   }
@@ -270,21 +279,23 @@ async function addVisitor() {
 async function addConsultation() {
   const c = newConsultation;
   let data = {
+    specialistId: props.specialistId,
     scheduleDate: props.datetime.toFormat("yyyy-MM-dd"),
     time: props.datetime.toFormat("HH:mm"),
     visitorId: selectedVisitor.value?.id,
     topic: c.topic,
-    visitorArrived: c.visitorArrived
+    visitorArrived: c.visitorArrived,
+    primary: c.primary,
   };
 
   if (c.type === 'individualConsultation')
-    data = { ...data, requestCode: c.requestCode, nature: c.nature, notes: c.notes };
+    data = { ...data, requestCode: isPsychologist.value ? c.requestCode : '-', notes: c.notes };
   else if (c.type === 'individualWork')
     data = { ...data, purpose: c.purpose };
   else if (c.type === 'diagnosticWork')
     data = {
       ...data,
-      primary: c.primary, requestCode: c.requestCode, subject: c.subject,
+      requestCode: c.requestCode, subject: c.subject,
       revealed: c.revealed, prescribed: c.prescribed
     };
   const url = `/api/consultations/${getConsultationTypeEndpoint(c.type)}`;
@@ -295,15 +306,15 @@ async function addConsultation() {
 
 async function updateConsultation() {
   const c = consultation.value
-  let data = { visitorId: c.visitor.id, topic: c.topic, visitorArrived: c.visitorArrived };
+  let data = { visitorId: c.visitor.id, topic: c.topic, primary: c.primary, visitorArrived: c.visitorArrived };
   if (c.type === 'individualConsultation')
-    data = { ...data, requestCode: c.requestCode, nature: c.nature, notes: c.notes };
+    data = { ...data, requestCode: c.requestCode, notes: c.notes };
   else if (c.type === 'individualWork')
     data = { ...data, purpose: c.purpose };
   else if (c.type === 'diagnosticWork')
     data = {
       ...data,
-      primary: c.primary, requestCode: c.requestCode, subject: c.subject,
+      requestCode: c.requestCode, subject: c.subject,
       revealed: c.revealed, prescribed: c.prescribed
     };
   const url = `/api/consultations/${getConsultationTypeEndpoint(c.type)}/${consultation.value.id}`;
@@ -311,7 +322,11 @@ async function updateConsultation() {
   consultation.value = parseConsultation(updatedConsultation);
 
   iziToast.info({ title: 'Данные обновлены.', layout: 2, timeout: 2000 });
-  // TODO: toast after update
+}
+
+async function deleteConsultation() {
+  await callDelete(`/api/consultations/${consultation.value.id}`);
+  router.push({ name: 'scheduleDay', params: { specialistId: props.specialistId, date: props.datetime.toISODate() } });
 }
 
 

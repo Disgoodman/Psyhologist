@@ -8,14 +8,28 @@
                          class="nav-link link-dark px-2"
                          :class="{active: router.currentRoute.value.name === 'home'}"
                          aria-current="page">
-              Главная
+              Новости
             </router-link>
           </li>
-          <li class="nav-item" v-if="isAuth" :class="{active: router.currentRoute.value.name === 'schedule'}">
+          <li class="nav-item" v-if="isAdmin" :class="{active: router.currentRoute.value.name === 'schedule'}">
             <router-link :to="{ name: 'schedule' }" class="nav-link link-dark px-2">Расписание</router-link>
           </li>
-          <li class="nav-item" v-if="isAuth" :class="{active: router.currentRoute.value.name === 'visitors'}">
+          <li class="nav-item" v-if="isAdmin" :class="{active: router.currentRoute.value.name === 'specialists'}">
+            <router-link :to="{ name: 'specialists' }" class="nav-link link-dark px-2">Специалисты</router-link>
+          </li>
+          <li class="nav-item" v-if="isAdmin" :class="{active: router.currentRoute.value.name === 'visitors'}">
             <router-link :to="{ name: 'visitors' }" class="nav-link link-dark px-2">Посетители</router-link>
+          </li>
+
+          <li class="nav-item" v-if="isVisitor" :class="{active: router.currentRoute.value.name === 'visitorConsultations'}">
+            <router-link :to="{ name: 'visitorConsultations' }" class="nav-link link-dark px-2">Записи</router-link>
+          </li>
+          <li class="nav-item" v-if="isVisitor" :class="{active: router.currentRoute.value.name === 'appointment'}">
+            <router-link :to="{ name: 'appointment' }" class="nav-link link-dark px-2">Запись</router-link>
+          </li>
+          
+          <li class="nav-item" v-if="isSpecialist" :class="{active: router.currentRoute.value.name === 'specialistSchedule'}">
+            <router-link :to="{ name: 'specialistSchedule' }" class="nav-link link-dark px-2">Записи</router-link>
           </li>
         </ul>
         <ul class="nav">
@@ -25,7 +39,10 @@
           <li class="nav-item" v-if="!isAuth" :class="{active: router.currentRoute.value.name === 'login'}">
             <router-link :to="{ name: 'login' }" class="nav-link link-dark px-2">Вход</router-link>
           </li>
-          
+
+          <li class="nav-item" v-if="isAuth" :class="{active: router.currentRoute.value.name === 'changePassword'}">
+            <router-link :to="{ name: 'changePassword' }" class="nav-link link-dark px-2">Изменить пароль</router-link>
+          </li>
           <li class="nav-item" v-if="isAuth">
             <button @click="logout" class="nav-link link-dark px-2">Выход</button>
           </li>
@@ -57,6 +74,8 @@ const router = useRouter();
 
 const isAuth = computed(() => store.getters.isAuth);
 const isAdmin = computed(() => store.getters.isAdmin);
+const isSpecialist = computed(() => store.getters.isSpecialist);
+const isVisitor = computed(() => store.getters.isVisitor);
 
 onErrorCaptured((err, vm, info) => {
   if (err instanceof RequestError) {

@@ -8,3 +8,14 @@ export const getCurrentDate = () =>
     DateTime.now().toFormat("yyyy-MM-dd")
 export const getCurrentTime = (includeSeconds = false) =>
     DateTime.now().toFormat("hh:mm" + (includeSeconds ? ":ss" : ""))
+
+/**
+ * @param {DateTime} date
+ * @param {DateTime} time
+ * @return {DateTime}
+ */
+export const concatDateAndTime = (date, time) => {
+    if (!date || !time) return null;
+    const s = date.toISODate() + 'T' + time.toISOTime();
+    return DateTime.fromISO(s)
+} 

@@ -1,5 +1,4 @@
-﻿using System.Globalization;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +7,7 @@ using Psychologist.Server.Models;
 
 namespace Psychologist.Server.Controllers;
 
-[ApiController, Route("schedule"), Authorize(Roles.Employee)]
+[ApiController, Route("schedule")]
 public class ScheduleController : ControllerBase
 {
     private readonly ILogger<ScheduleController> _logger;
@@ -20,10 +19,19 @@ public class ScheduleController : ControllerBase
         _context = context;
     }
 
-    [HttpGet]
-    public async Task<IActionResult> GetAll()
+    [HttpGet("{specialistId:int?}"), Authorize(Roles.Visitor)]
+    public async Task<IActionResult> GetAll(int? specialistId)
     {
-        var schedule = await _context.ScheduleDays.ToListAsync();
+        if (specialistId == null && User.IsInRole(Roles.Employee))
+        {
+            int userId = User.GetUserId()!.Value;
+            var specialist = await _context.Specialists.FirstAsync(v => v.UserId == userId);
+            specialistId = specialist.Id;
+        }
+        
+        var schedule = await _context.ScheduleDays.AsNoTracking()
+            .Where(d => d.SpecialistId == specialistId)
+            .ToListAsync();
         return Ok(schedule);
     }
 
@@ -37,7 +45,7 @@ public class ScheduleController : ControllerBase
     public static List<ConsultationInterval> GetIntervals(ScheduleDay day)
     {
         var intervalsCount = day.EndTime.Hour - day.StartTime.Hour - (day.BreakTime != null ? 1 : 0);
-        
+
         List<ConsultationInterval> consultationIntervals = new(intervalsCount);
         for (var time = day.StartTime; time < day.EndTime; time = time.AddHours(1))
         {
@@ -51,12 +59,13 @@ public class ScheduleController : ControllerBase
         return consultationIntervals;
     }
 
-    [HttpGet(@"{date:regex(\d\d\d\d-\d\d-\d\d)}")]
-    public async Task<IActionResult> Get(DateOnly date)
+    [HttpGet(@"{specialistId:int}/{date:regex(\d\d\d\d-\d\d-\d\d)}"), Authorize(Roles.Employee)]
+    public async Task<IActionResult> Get(int specialistId, DateOnly date)
     {
-        var day = await _context.ScheduleDays
+        var day = await _context.ScheduleDays.AsNoTracking()
             .Include(d => d.Consultations)
             .ThenInclude(c => c.Visitor)
+            .Where(d => d.SpecialistId == specialistId)
             .FirstOrDefaultAsync(d => d.Date == date);
 
         if (day == null) return NotFound();
@@ -73,14 +82,16 @@ public class ScheduleController : ControllerBase
         });
     }
 
-    [HttpPost]
-    public async Task<IActionResult> Post([FromBody] ScheduleDayPostModel model)
+    [HttpPost("{specialistId:int}"), Authorize(Roles.Employee)]
+    public async Task<IActionResult> Post(int specialistId, [FromBody] ScheduleDayPostModel model)
     {
-        var existedDay = await _context.ScheduleDays.FirstOrDefaultAsync(d => d.Date == model.Date!.Value);
-        if (existedDay != null) return Conflict("Day already exists.");
+        var existedDay = await _context.ScheduleDays
+            .FirstOrDefaultAsync(d => d.Date == model.Date!.Value && d.SpecialistId == specialistId);
+        if (existedDay != null) return Problem(title: "Day already exists.", statusCode: StatusCodes.Status409Conflict);
 
         ScheduleDay day = new()
         {
+            SpecialistId = specialistId,
             Date = model.Date!.Value,
             StartTime = model.StartTime!.Value.TruncateToHours(),
             EndTime = model.EndTime!.Value.TruncateToHours(),
@@ -89,47 +100,31 @@ public class ScheduleController : ControllerBase
         _context.ScheduleDays.Add(day);
         await _context.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(Get), new { date = day.Date.ToString("O") }, day);
-    }
-
-    // Not used, can be deleted
-    [HttpPost("bulk")]
-    public async Task<IActionResult> Post([FromBody] ScheduleDayPostModel[] model)
-    {
-        var existedDay = await _context.ScheduleDays.FirstOrDefaultAsync(d =>
-            model.Select(m => m.Date).Contains(d.Date));
-        if (existedDay != null) return Conflict($"Schedule for date {existedDay.Date:dd.MM.yyyy} already exists.");
-
-        var days = model.Select(d => new ScheduleDay()
+        return CreatedAtAction(nameof(Get), new
         {
-            Date = d.Date!.Value,
-            StartTime = d.StartTime!.Value.TruncateToHours(),
-            EndTime = d.EndTime!.Value.TruncateToHours(),
-            BreakTime = d.BreakTime!.Value.TruncateToHours()
-        }).ToList();
-        _context.ScheduleDays.AddRange(days);
-        await _context.SaveChangesAsync();
-
-        return Ok(days);
+            specialistId, date = day.Date.ToString("O")
+        }, day);
     }
 
-    [HttpPost("range")]
-    public async Task<IActionResult> Post([FromBody] ScheduleRangePostModel model)
+    [HttpPost("{specialistId:int}/range"), Authorize(Roles.Employee)]
+    public async Task<IActionResult> Post(int specialistId, [FromBody] ScheduleRangePostModel model)
     {
         var existedDay = await _context.ScheduleDays.FirstOrDefaultAsync(d =>
-            d.Date >= model.StartDate && d.Date <= model.EndDate);
+            d.Date >= model.StartDate && d.Date <= model.EndDate
+                                      && d.SpecialistId == specialistId);
         if (existedDay != null) return Conflict($"Schedule for date {existedDay.Date:dd.MM.yyyy} already exists.");
 
         int GetDayOfWeekNumber(DayOfWeek day) => day == DayOfWeek.Sunday ? 6 : (int)day - 1;
 
         List<ScheduleDay> days = new();
-        for (DateOnly date = model.StartDate!.Value; date < model.EndDate; date = date.AddDays(1))
+        for (DateOnly date = model.StartDate!.Value; date <= model.EndDate; date = date.AddDays(1))
         {
             var dayOfWeek = GetDayOfWeekNumber(date.DayOfWeek);
             if (model.Weekdays!.TryGetValue(dayOfWeek, out var schedule))
             {
                 days.Add(new()
                 {
+                    SpecialistId = specialistId,
                     Date = date,
                     StartTime = schedule!.StartTime!.Value.TruncateToHours(),
                     EndTime = schedule!.EndTime!.Value.TruncateToHours(),
@@ -144,11 +139,11 @@ public class ScheduleController : ControllerBase
         return Ok(days);
     }
 
-    [HttpPut("{date:regex(\\d\\d\\d\\d-\\d\\d-\\d\\d)}")]
+    [HttpPut("{specialistId:int}/{date:regex(\\d\\d\\d\\d-\\d\\d-\\d\\d)}"), Authorize(Roles.Employee)]
     [Produces<ScheduleDay>]
-    public async Task<IActionResult> Put(DateOnly date, [FromBody] ScheduleDayPutModel model)
+    public async Task<IActionResult> Put(int specialistId, DateOnly date, [FromBody] ScheduleDayPutModel model)
     {
-        var day = await _context.ScheduleDays.FirstOrDefaultAsync(d => d.Date == date);
+        var day = await _context.ScheduleDays.FirstOrDefaultAsync(d => d.Date == date && d.SpecialistId == specialistId);
         if (day == null) return NotFound();
 
         day.StartTime = model.StartTime!.Value.TruncateToHours();
@@ -159,18 +154,21 @@ public class ScheduleController : ControllerBase
         return Ok(day);
     }
 
-    [HttpDelete("{date:regex(\\d\\d\\d\\d-\\d\\d-\\d\\d)}")]
-    public async Task<IActionResult> Delete(DateOnly date)
+    [HttpDelete("{specialistId:int}/{date:regex(\\d\\d\\d\\d-\\d\\d-\\d\\d)}"), Authorize(Roles.Employee)]
+    public async Task<IActionResult> Delete(int specialistId, DateOnly date)
     {
         // TODO: disable cascade delete consultations
-        var c = await _context.ScheduleDays.Where(d => d.Date == date).ExecuteDeleteAsync();
+        var c = await _context.ScheduleDays.Where(d => d.Date == date && d.SpecialistId == specialistId).ExecuteDeleteAsync();
         return c > 0 ? Ok() : NotFound();
     }
 
-    [HttpDelete("{from:regex(\\d\\d\\d\\d-\\d\\d-\\d\\d)}/{to:regex(\\d\\d\\d\\d-\\d\\d-\\d\\d)}")]
-    public async Task<IActionResult> Delete(DateOnly from, DateOnly to)
+    [HttpDelete("{specialistId:int}/{from:regex(\\d\\d\\d\\d-\\d\\d-\\d\\d)}/{to:regex(\\d\\d\\d\\d-\\d\\d-\\d\\d)}"),
+     Authorize(Roles.Employee)]
+    public async Task<IActionResult> Delete(int specialistId, DateOnly from, DateOnly to)
     {
-        int c = await _context.ScheduleDays.Where(d => d.Date >= from && d.Date <= to).ExecuteDeleteAsync();
+        int c = await _context.ScheduleDays
+            .Where(d => d.Date >= from && d.Date <= to && d.SpecialistId == specialistId)
+            .ExecuteDeleteAsync();
         return c > 0 ? Ok() : NotFound();
     }
 }

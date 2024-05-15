@@ -13,15 +13,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
 {
     public DbSet<Article> Articles { get; set; } = null!;
     public DbSet<Visitor> Visitors { get; set; } = null!;
+    public DbSet<Specialist> Specialists { get; set; } = null!;
     public DbSet<ScheduleDay> ScheduleDays { get; set; } = null!;
     public DbSet<Consultation> Consultations { get; set; } = null!;
     public DbSet<IndividualConsultation> IndividualConsultations { get; set; } = null!;
     public DbSet<IndividualWork> IndividualWorks { get; set; } = null!;
     public DbSet<DiagnosticWork> DiagnosticWorks { get; set; } = null!;
 
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
-    {
-    }
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -37,6 +36,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
         builder.Entity<IndividualConsultation>();
         builder.Entity<IndividualWork>();
         builder.Entity<DiagnosticWork>();
+
+        builder.Entity<Consultation>()
+            .HasOne(c => c.Day)
+            .WithMany(c => c.Consultations)
+            .HasForeignKey(c => new { c.SpecialistId, c.ScheduleDate });
     }
 
     /// <summary> Method that configures the <see cref="NpgsqlDataSourceBuilder"/>. </summary>
@@ -48,19 +52,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
 
 // https://learn.microsoft.com/en-us/aspnet/identity/overview/extensibility/change-primary-key-for-users-in-aspnet-identity
 
-public class ApplicationUser : IdentityUser<UserKey>
-{
-}
+public class ApplicationUser : IdentityUser<UserKey> { }
 
 public class ApplicationRole : IdentityRole<UserKey>
 {
-    public ApplicationRole()
-    {
-    }
+    public ApplicationRole() { }
 
-    public ApplicationRole(String roleName) : base(roleName)
-    {
-    }
+    public ApplicationRole(String roleName) : base(roleName) { }
 }
 
 public static class ClaimsPrincipalExtensions
@@ -75,6 +73,7 @@ public static class Roles
 {
     public const string Admin = nameof(Admin);
     public const string Employee = nameof(Employee);
+    public const string Visitor = nameof(Visitor);
 
-    public static readonly ImmutableArray<string> List = [Admin, Employee];
+    public static readonly ImmutableArray<string> List = [Admin, Employee, Visitor];
 }

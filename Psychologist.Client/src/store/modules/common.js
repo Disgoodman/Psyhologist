@@ -1,19 +1,10 @@
 ﻿import { callGet, callPost } from '@/services/api';
 import { DateTime } from "luxon";
 import { dateTimeOptions } from "@/utils/timeUtils.js";
-import { isString } from "@/utils/commonUtils.js";
 
 export const parseArticle = a => ({
     ...a,
     time: DateTime.fromISO(a.time, dateTimeOptions),
-});
-
-export const parseSchedule = s => ({
-    ...s,
-    date: DateTime.fromISO(s.date, dateTimeOptions),
-    startTime: DateTime.fromISO(s.startTime, dateTimeOptions),
-    endTime: DateTime.fromISO(s.endTime, dateTimeOptions),
-    breakTime: DateTime.fromISO(s.breakTime, dateTimeOptions)
 });
 
 export const parseVisitor = c => ({
@@ -21,24 +12,28 @@ export const parseVisitor = c => ({
     birthday: DateTime.fromISO(c.birthday, dateTimeOptions),
 });
 
+export const parseSpecialist = c => c;
+
 export const parseConsultation = c => ({
     ...c,
     scheduleDate: DateTime.fromISO(c.scheduleDate, dateTimeOptions),
     time: DateTime.fromISO(c.time, dateTimeOptions),
-    visitor: c.visitor ? parseVisitor(c.visitor) : c.visitor
+    visitor: c.visitor ? parseVisitor(c.visitor) : c.visitor,
+    specialist: c.specialist ? parseSpecialist(c.specialist) : c.specialist,
+    dateTime: DateTime.fromISO(c.scheduleDate + 'T' + c.time, dateTimeOptions),
 });
 
 
 export default {
     state: {
         articles: null,
-        schedule: null,
-        visitors: null
+        visitors: null,
+        specialists: null
     },
     getters: {
         articlesLoaded: state => !!state.articles,
-        scheduleLoaded: state => !!state.schedule,
         visitorsLoaded: state => !!state.visitors,
+        specialistsLoaded: state => !!state.specialists,
     },
     mutations: {
         setArticles(state, articles) {
@@ -57,33 +52,6 @@ export default {
             if (index >= 0) state.articles.splice(index, 1);
         },
         
-        setSchedule(state, schedule) {
-            state.schedule = schedule.map(parseSchedule);
-        },
-        addSchedule(state, schedule) {
-            if (Array.isArray(schedule)) {
-                state.schedule.push(...schedule.map(parseSchedule));
-            } else {
-                state.schedule.push(parseSchedule(schedule));
-            }
-        },
-        updateSchedule(state, schedule) {
-            schedule = parseSchedule(schedule);
-            let index = state.schedule.findIndex(e => +e.date === +schedule.date);
-            if (index >= 0) state.schedule.splice(index, 1, schedule);
-            else state.schedule.push(schedule);
-        },
-        deleteSchedule(state, scheduleDate) {
-            if (isString(scheduleDate)) scheduleDate = DateTime.fromISO(scheduleDate, dateTimeOptions);
-            let index = state.schedule.findIndex(e => +e.date === +scheduleDate);
-            if (index >= 0) state.schedule.splice(index, 1);
-        },
-        deleteScheduleRange(state, {startDate, endDate}) {
-            if (isString(startDate)) startDate = DateTime.fromISO(startDate, dateTimeOptions);
-            if (isString(endDate)) endDate = DateTime.fromISO(endDate, dateTimeOptions);
-            state.schedule = state.schedule.filter(s => !(s.date >= startDate && s.date <= endDate));
-        },
-
         setVisitors(state, visitors) {
             state.visitors = visitors.map(parseVisitor);
         },
@@ -99,6 +67,23 @@ export default {
             let index = state.visitors?.findIndex(e => e.id === visitorId);
             if (index >= 0) state.visitors.splice(index, 1);
         },
+
+        setSpecialists(state, specialists) {
+            state.specialists = specialists.map(parseSpecialist);
+        },
+        addSpecialist(state, specialist) {
+            state.specialists?.push(parseSpecialist(specialist));
+        },
+        updateSpecialist(state, specialist) {
+            let index = state.specialists?.findIndex(e => e.id === specialist.id);
+            if (index >= 0) state.specialists.splice(index, 1, parseSpecialist(specialist));
+            else if (state.specialists) state.specialists.push(parseSpecialist(specialist));
+        },
+        deleteSpecialist(state, specialistId) {
+            let index = state.specialists?.findIndex(e => e.id === specialistId);
+            if (index >= 0) state.specialists.splice(index, 1);
+        },
+        
     },
     actions: {
         async loadArticles(ctx) {
@@ -106,15 +91,15 @@ export default {
             console.debug('articles: ', articles);
             ctx.commit('setArticles', articles);
         },
-        async loadSchedule(ctx) {
-            let schedule = await callGet('/api/schedule');
-            console.debug('schedule: ', schedule);
-            ctx.commit('setSchedule', schedule);
-        },
         async loadVisitors(ctx) {
             let visitors = await callGet('/api/visitors');
             console.debug('visitors: ', visitors);
             ctx.commit('setVisitors', visitors);
+        },
+        async loadSpecialists(ctx) {
+            let specialists = await callGet('/api/specialists');
+            console.debug('specialists: ', specialists);
+            ctx.commit('setSpecialists', specialists);
         },
     }
 }

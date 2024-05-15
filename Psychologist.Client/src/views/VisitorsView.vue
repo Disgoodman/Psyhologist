@@ -3,7 +3,7 @@
 
     <div v-if="!visitorsLoaded" class="d-flex justify-content-center">
       <div class="spinner-border" role="status">
-        <span class="visually-hidden">Loading...</span>
+        <span class="visually-hidden">Загрузка...</span>
       </div>
     </div>
 
@@ -41,6 +41,14 @@
             <option v-for="type in visitorTypes" :value="type.name">{{ type.title }}</option>
           </select>
         </div>
+<!--        <div class="input-group mb-3">
+          <span class="input-group-text">Email</span>
+          <input type="email" class="form-control" v-model="newVisitor.email">
+        </div>
+        <div class="input-group mb-3">
+          <span class="input-group-text">Пароль</span>
+          <input type="text" class="form-control" v-model="newVisitor.password">
+        </div>-->
 
         <div class="d-flex flex-row-reverse">
           <button type="button" class="btn btn-outline-secondary" @click="newVisitorFormVisible = false">
@@ -51,7 +59,6 @@
       </div>
     </div>
 
-    <!-- TODO: search -->
     <form class="mb-3 d-flex" @submit.prevent="search">
       <input v-model="searchText" class="flex-grow-1 form-control" placeholder="ФИО / Дата рождения / Тип">
       <button type="submit" class="ms-1 btn btn-outline-secondary">Поиск</button>
@@ -68,7 +75,7 @@
       </thead>
       <tbody>
       <tr v-for="visitor in filteredVisitors" @click="openVisitorPage(visitor)">
-        <th scope="row">{{ getVisitorFullname(visitor) }}</th>
+        <th scope="row">{{ getFullName(visitor) }}</th>
         <td>{{ visitor.birthday.toFormat('dd.MM.yyyy') }}</td>
         <td>{{ getVisitorTypeTitleByName(visitor.type) }}</td>
         <td>
@@ -77,12 +84,6 @@
                     @click.stop="deleteVisitor(visitor)">
               Удалить
             </button>
-            <!--<button type="button"
-                    class="btn btn-outline-secondary btn-sm me-1"
-                    :disabled="editedVisitor?.id === visitor.id"
-                    @click="editVisitor(visitor)">
-              Редактировать
-            </button>-->
           </div>
         </td>
       </tr>
@@ -99,7 +100,7 @@ import { computed, onMounted } from "vue";
 import { callDelete, callPost, callPut } from "@/services/api.js";
 import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
-import { getVisitorFullname, getVisitorLabel } from "@/utils/commonUtils.js";
+import { getFullName, getVisitorLabel } from "@/utils/commonUtils.js";
 
 const store = useStore();
 const router = useRouter();
@@ -117,7 +118,10 @@ const visitorTypes = [
 ]
 const getVisitorTypeTitleByName = name => visitorTypes.find(t => t.name === name)?.title;
 
-const newVisitor = reactive({ firstName: '', lastName: '', patronymic: '', birthday: '', type: visitorTypes[0].name });
+const newVisitor = reactive({
+  //email: '', password: '',
+  firstName: '', lastName: '', patronymic: '', birthday: '', type: visitorTypes[0].name
+});
 const newVisitorFormVisible = ref(false);
 const searchText = ref('');
 

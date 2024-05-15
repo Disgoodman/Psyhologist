@@ -12,10 +12,13 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-builder.Services.AddControllers().AddJsonOptions(options =>
-{
-    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
-});
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+    });
+
+builder.Services.AddProblemDetails();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -40,6 +43,7 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy(Roles.Admin, policy => policy.RequireRole(Roles.Admin));
     options.AddPolicy(Roles.Employee, policy => policy.RequireRole(Roles.Employee, Roles.Admin));
+    options.AddPolicy(Roles.Visitor, policy => policy.RequireRole(Roles.Visitor, Roles.Employee, Roles.Admin));
 });
 
 builder.Services.AddIdentityApiEndpoints<ApplicationUser>(o =>

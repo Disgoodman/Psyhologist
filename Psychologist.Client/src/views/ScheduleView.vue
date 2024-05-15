@@ -1,18 +1,27 @@
 ﻿<template>
   <div>
-    <div class="btn-group mx-3 mt-3 d-flex" role="group">
-      <input type="radio" class="btn-check" id="scheduleViewMode" v-model="editMode" :value="false">
-      <label class="btn btn-outline-primary" for="scheduleViewMode">Режим просмотра</label>
-
-      <input type="radio" class="btn-check" id="scheduleEditMode" v-model="editMode" :value="true">
-      <label class="btn btn-outline-primary" for="scheduleEditMode">Режим редактирования</label>
+    <div class="mx-3 mt-3 d-flex align-items-center">
+      <p class="m-0 me-3">Специалист</p>
+      <select class="form-select" v-model="specialist">
+        <option v-for="s in specialists" :value="s">{{ getFullName(s) }} ({{ s.type }})</option>
+      </select>
     </div>
 
-    <p v-show="editMode" class="mx-3 mt-2 p-0 text-secondary lh-sm">
-      Для редактирования расписания нажмите на дату или выделите диапазон дат.
-    </p>
+    <div v-show="scheduleLoaded">
+      <div class="btn-group mx-3 mt-3 d-flex" role="group">
+        <input type="radio" class="btn-check" id="scheduleViewMode" v-model="editMode" :value="false">
+        <label class="btn btn-outline-primary" for="scheduleViewMode">Режим просмотра</label>
 
-    <div class="calendar mt-3" @selectRange="selectRange"></div>
+        <input type="radio" class="btn-check" id="scheduleEditMode" v-model="editMode" :value="true">
+        <label class="btn btn-outline-primary" for="scheduleEditMode">Режим редактирования</label>
+      </div>
+
+      <p v-show="editMode" class="mx-3 mt-2 p-0 text-secondary lh-sm">
+        Для редактирования расписания нажмите на дату или выделите диапазон дат.
+      </p>
+
+      <div class="calendar mt-3" @selectRange="selectRange"></div>
+    </div>
   </div>
 </template>
 
@@ -33,9 +42,15 @@ import AddScheduleModal from "@/components/AddScheduleModal.vue";
 import RemoveScheduleModal from "@/components/RemoveScheduleModal.vue";
 import AddScheduleDayModal from "@/components/AddScheduleDayModal.vue";
 import EditScheduleDayModal from "@/components/EditScheduleDayModal.vue";
+import { getFullName, requestCodes } from "@/utils/commonUtils.js";
 
 const store = useStore();
 const router = useRouter();
+
+const specialist = ref(store.state.schedule.scheduleSpecialist);
+watch(specialist, async s => {
+  await store.dispatch('loadSchedule', s);
+});
 
 const year = ref(new Date().getFullYear());
 const editMode = ref(false);
@@ -44,8 +59,9 @@ const dateTypes = {
   'workday': { color: 'var(--event-workday-color)', name: 'Рабочий день', tippyTheme: 'event-workday' }
 }
 
-const schedule = computed(() => store.state.common.schedule);
+const schedule = computed(() => store.state.schedule.schedule);
 const scheduleLoaded = computed(() => store.getters.scheduleLoaded);
+const specialists = computed(() => store.state.common.specialists ?? []);
 
 const calendarDataSource = computed(() => {
   console.log('scheduleData')
@@ -69,7 +85,7 @@ async function selectRange(event) {
     return await selectRangeInEditMode(event, startDate, endDate)
   } else {
     if (event.events.length !== 0) {
-      await router.push({ name: 'scheduleDay', params: { date: startDate.toISODate() } })
+      await router.push({ name: 'scheduleDay', params: { specialistId: specialist.value.id, date: startDate.toISODate() } })
     }
   }
 }
@@ -139,7 +155,8 @@ onMounted(async () => {
     }
   });
 
-  await store.dispatch('loadSchedule');
+  if (!store.getters.specialistsLoaded)
+    await store.dispatch('loadSpecialists');
 });
 
 function addSchedule({ startDate, endDate }) {
@@ -152,7 +169,7 @@ const addScheduleVfmModal = useModal({
   component: AddScheduleModal,
   attrs: {
     async onSubmit(data) {
-      let days = await callPost(`/api/schedule/range`, data);
+      let days = await callPost(`/api/schedule/${specialist.value.id}/range`, data);
       store.commit('addSchedule', days);
       await addScheduleVfmModal.close();
     },
@@ -173,7 +190,7 @@ const addScheduleDayVfmModal = useModal({
   component: AddScheduleDayModal,
   attrs: {
     async onSubmit(data) {
-      let day = await callPost('/api/schedule', data);
+      let day = await callPost(`/api/schedule/${specialist.value.id}`, data);
       store.commit('addSchedule', day);
       await addScheduleDayVfmModal.close();
     },
@@ -198,12 +215,12 @@ const editScheduleDayVfmModal = useModal({
     async onSubmit(data) {
       console.log(data);
       let { date, ...schedule } = data;
-      let day = await callPut('/api/schedule/' + date, schedule);
+      let day = await callPut(`/api/schedule/${specialist.value.id}/${date}`, schedule);
       store.commit('updateSchedule', day);
       await editScheduleDayVfmModal.close();
     },
     async onRemove(data) {
-      await callDelete('/api/schedule/' + data.date)
+      await callDelete(`/api/schedule/${specialist.value.id}/${data.date}`)
       store.commit('deleteSchedule', data.date);
       await editScheduleDayVfmModal.close();
     },
@@ -225,7 +242,7 @@ const removeScheduleVfmModal = useModal({
   component: RemoveScheduleModal,
   attrs: {
     async onSubmit(data) {
-      await callDelete('/api/schedule/' + data.startDate + '/' + data.endDate)
+      await callDelete(`/api/schedule/${specialist.value.id}/${data.startDate}/${data.endDate}`)
       store.commit('deleteScheduleRange', data);
       await removeScheduleVfmModal.close();
     },

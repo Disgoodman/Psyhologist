@@ -52,7 +52,7 @@ async function login() {
 
 form {
 	max-width: 330px;
-	margin-top: 17%;
+	margin-top: 5%;
 }
 
 </style>

@@ -1,20 +1,23 @@
 using System.Security.Claims;
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Psychologist.Server.Database;
+using Psychologist.Server.Models;
 
 namespace Psychologist.Server.Controllers;
 
 [ApiController]
 public class UserController(
     ILogger<UserController> logger,
+    ApplicationDbContext context,
     UserManager<ApplicationUser> userManager)
     : ControllerBase
 {
     [HttpGet("me", Name = "Me"), Authorize]
-    public IActionResult Get(ApplicationDbContext context)
+    public async Task<IActionResult> Get(ApplicationDbContext context)
     {
         var id = User.GetUserId();
         var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value);
@@ -23,6 +26,23 @@ public class UserController(
                 u.Id, u.UserName, u.Email, Roles = roles
             })
             .FirstOrDefault(u => u.Id == id);
+        if (user == null) return Unauthorized();
+        
+        /*Dictionary<string, object?> userInfo = new();
+        userInfo[nameof(user.Id)] = user.Id;
+        userInfo[nameof(user.UserName)] = user.UserName;
+        userInfo[nameof(user.Email)] = user.Email;
+        userInfo[nameof(user.Roles)] = user.Roles;*/
+        if (User.IsInRole(Roles.Visitor))
+        {
+            var visitor = await context.Visitors.FirstAsync(v => v.UserId == id);
+            return Ok(new { user.Id, user.UserName, user.Email, user.Roles, Visitor = visitor });
+        }
+        if (User.IsInRole(Roles.Employee))
+        {
+            var specialist = await context.Specialists.FirstAsync(v => v.UserId == id);
+            return Ok(new { user.Id, user.UserName, user.Email, user.Roles, Specialist = specialist });
+        }
         return Ok(user);
     }
 
@@ -33,7 +53,56 @@ public class UserController(
         return Ok();
     }
 
-    [Authorize(Roles.Admin)]
+    private ObjectResult ProblemFromIdentityError(IEnumerable<IdentityError> errors) => Problem(
+        statusCode: StatusCodes.Status400BadRequest,
+        title: string.Join(", ", errors.Select(e => e.Description))
+    );
+
+    [HttpPost("register-visitor")]
+    public async Task<IActionResult> RegisterVisitor(VisitorRegisterModel model)
+    {
+        var user = new ApplicationUser
+        {
+            Email = model.Email!,
+            UserName = model.Email!
+        };
+
+        var identityResult = await userManager.CreateAsync(user, model.Password!);
+        if (!identityResult.Succeeded) return ProblemFromIdentityError(identityResult.Errors);
+
+        identityResult = await userManager.AddToRoleAsync(user, Roles.Visitor);
+        if (!identityResult.Succeeded) return ProblemFromIdentityError(identityResult.Errors);
+
+        Visitor visitor = new()
+        {
+            User = user,
+            FirstName = model.FirstName!,
+            LastName = model.LastName!,
+            Patronymic = model.Patronymic,
+            Type = model.Type!.Value,
+            Birthday = model.Birthday!.Value
+        };
+
+        context.Visitors.Add(visitor);
+        await context.SaveChangesAsync();
+
+        return Ok();
+    }
+    
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword(ChangePasswordModel model)
+    {
+        // var user = await userManager.GetUserAsync(User); // ?
+        var id = User.GetUserId();
+        var user = context.Users.First(u => u.Id == id);
+
+        var identityResult = await userManager.ChangePasswordAsync(user, model.OldPassword!, model.NewPassword!);
+        if (!identityResult.Succeeded) return ProblemFromIdentityError(identityResult.Errors);
+
+        return Ok();
+    }
+
+    /*[Authorize(Roles.Admin)]
     [HttpGet("user", Name = "GetUsers")]
     public async Task<IActionResult> GetUsers(ApplicationDbContext context)
     {
@@ -133,9 +202,20 @@ public class UserController(
         }
 
         return Ok();
-    }
+    }*/
 }
 
-public record UserPostModel(string Email, string Password, string[]? Roles);
+/*public record UserPostModel(string Email, string Password, string[]? Roles);
 
-public record UserPutModel(string Email, string[]? Roles);
+public record UserPutModel(string Email, string[]? Roles);*/
+
+public record ChangePasswordModel(string? OldPassword, string? NewPassword);
+
+public class ChangePasswordModelValidator : AbstractValidator<ChangePasswordModel>
+{
+    public ChangePasswordModelValidator()
+    {
+        RuleFor(user => user.OldPassword).NotNull().NotEmpty().MinimumLength(6);
+        RuleFor(user => user.NewPassword).NotNull().NotEmpty().MinimumLength(6);
+    }
+}

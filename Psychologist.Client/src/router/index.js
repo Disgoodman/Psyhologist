@@ -6,12 +6,18 @@ import SignInView from '../views/SignInView.vue'
 import { DateTime } from "luxon";
 
 // Lazy loading | TODO: chunks not work with Vite
-const SignUpView = () => import(/* webpackChunkName: "с" */ '../views/SignUpView.vue')
-const ScheduleView = () => import(/* webpackChunkName: "с" */ '../views/ScheduleView.vue')
-const ScheduleDayView = () => import(/* webpackChunkName: "с" */ '../views/ScheduleDayView.vue')
-const ConsultationView = () => import(/* webpackChunkName: "с" */ '../views/ConsultationView.vue')
-const VisitorsView = () => import(/* webpackChunkName: "с" */ '../views/VisitorsView.vue')
-const VisitorView = () => import(/* webpackChunkName: "с" */ '../views/VisitorView.vue')
+const SignUpView = () => import('../views/SignUpView.vue')
+const ChangePasswordView = () => import('../views/ChangePasswordView.vue')
+const ScheduleView = () => import('../views/ScheduleView.vue')
+const SpecialistScheduleView = () => import('../views/SpecialistScheduleView.vue')
+const ScheduleDayView = () => import('../views/ScheduleDayView.vue')
+const ConsultationView = () => import('../views/ConsultationView.vue')
+const VisitorsView = () => import('../views/VisitorsView.vue')
+const VisitorView = () => import('../views/VisitorView.vue')
+const VisitorConsultationsView = () => import('../views/VisitorConsultationsView.vue')
+const SpecialistsView = () => import('../views/SpecialistsView.vue')
+const SpecialistView = () => import('../views/SpecialistView.vue')
+const AppointmentView = () => import('../views/AppointmentView.vue')
 
 const isNotAuthenticated = (to, from) => {
     if (store.getters.isAuth)
@@ -24,7 +30,10 @@ const isAuthenticated = (to, from) => {
     }
 }
 
+const isAdminOrSpecialist = (to, from) => isAuthenticated(to, from) ?? (store.getters.isAdmin || store.getters.isSpecialist);
 const isAdmin = (to, from) => isAuthenticated(to, from) ?? store.getters.isAdmin;
+const isVisitor = (to, from) => isAuthenticated(to, from) ?? store.getters.isVisitor;
+const isSpecialist = (to, from) => isAuthenticated(to, from) ?? store.getters.isSpecialist;
 
 const routes = [
     {
@@ -41,33 +50,46 @@ const routes = [
         meta: { title: 'Вход' }
     },
     {
+        path: '/change-password',
+        name: 'changePassword',
+        component: ChangePasswordView,
+        beforeEnter: isAuthenticated,
+        meta: { title: 'Изменение пароля' }
+    },
+    {
         path: '/schedule',
         name: 'schedule',
         component: ScheduleView,
-        beforeEnter: isAuthenticated,
+        beforeEnter: isAdmin,
         meta: { title: 'Расписание' }
     },
     {
-        path: '/schedule/:date(\\d{4}-\\d{2}-\\d{2})',
+        path: '/schedule/:specialistId(\\d+)/:date(\\d{4}-\\d{2}-\\d{2})',
         name: 'scheduleDay',
         component: ScheduleDayView,
-        props: route => ({ date: DateTime.fromISO(route.params.date) }),
-        beforeEnter: isAuthenticated,
+        props: route => ({
+            specialistId: Number(route.params.specialistId),
+            date: DateTime.fromISO(route.params.date)
+        }),
+        beforeEnter: isAdminOrSpecialist,
         meta: { title: 'Расписание' }
     },
     {
-        path: '/schedule/:date(\\d{4}-\\d{2}-\\d{2})/:time(\\d{2}:\\d{2})',
+        path: '/schedule/:specialistId(\\d+)/:date(\\d{4}-\\d{2}-\\d{2})/:time(\\d{2}:\\d{2})',
         name: 'consultation',
         component: ConsultationView,
-        props: route => ({ datetime: DateTime.fromISO(route.params.date + 'T' + route.params.time) }),
-        beforeEnter: isAuthenticated,
+        props: route => ({
+            specialistId: Number(route.params.specialistId),
+            datetime: DateTime.fromISO(route.params.date + 'T' + route.params.time)
+        }),
+        beforeEnter: isAdminOrSpecialist,
         meta: { title: 'Консультация' }
     },
     {
         path: '/visitors',
         name: 'visitors',
         component: VisitorsView,
-        beforeEnter: isAuthenticated,
+        beforeEnter: isAdmin,
         meta: { title: 'Посетители' }
     },
     {
@@ -75,9 +97,46 @@ const routes = [
         name: 'visitor',
         component: VisitorView,
         props: route => ({ id: Number(route.params.id) }),
-        beforeEnter: isAuthenticated,
+        beforeEnter: isAdmin,
         meta: { title: 'Посетитель' },
     },
+    {
+        path: '/visitor-consultations',
+        name: 'visitorConsultations',
+        component: VisitorConsultationsView,
+        beforeEnter: isVisitor,
+        meta: { title: 'консультации' },
+    },
+    {
+        path: '/specialists',
+        name: 'specialists',
+        component: SpecialistsView,
+        beforeEnter: isAdmin,
+        meta: { title: 'Специалисты' }
+    },
+    {
+        path: '/specialists/:id(\\d)',
+        name: 'specialist',
+        component: SpecialistView,
+        props: route => ({ id: Number(route.params.id) }),
+        beforeEnter: isAdmin,
+        meta: { title: 'Специалист' },
+    },
+    {
+        path: '/specialist-schedule',
+        name: 'specialistSchedule',
+        component: SpecialistScheduleView,
+        beforeEnter: isSpecialist,
+        meta: { title: 'Записи' },
+    },
+    {
+        path: '/appointment',
+        name: 'appointment',
+        component: AppointmentView,
+        beforeEnter: isVisitor,
+        meta: { title: 'Расписание' }
+    },
+    
     {
         path: '/register',
         name: 'register',
@@ -85,7 +144,7 @@ const routes = [
         beforeEnter: isNotAuthenticated,
         meta: { title: 'Регистрация' }
     },
-    
+
     { path: '/:catchAll(.*)*', redirect: '/' }
 ]
 
